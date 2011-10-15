@@ -84,8 +84,28 @@ JNIEXPORT jboolean JNICALL Java_jug_ndk_audio_encoder_AudioEncoder_allocate
 JNIEXPORT jint JNICALL Java_jug_ndk_audio_encoder_AudioEncoder_encode
   (JNIEnv *env, jobject thiz, jint inputSize, jbyteArray inBuffer, jbyteArray outBuffer)
 {
-    info("invoke encode");
-    return -1;
+    jclass cls = (*env)->GetObjectClass(env, thiz);
+    jfieldID lame_pointer_field = (*env)->GetFieldID(env, cls, "nativePointerAddress", "I");
+    int my_lame_addr = (*env)->GetIntField(env, thiz, lame_pointer_field);
+    if(my_lame_addr == 0)
+    {
+        info("no lame-ctx found. try allocate first");
+        return -1;
+    }
+    struct lame_ctx * ctx = (struct lame_ctx*) my_lame_addr;
+    jint pcm_len = (*env)->GetArrayLength(env, inBuffer);
+    jint out_mp3_len = (*env)->GetArrayLength(env, outBuffer);
+
+    jbyte* pcm_buffer = (*env)->GetByteArrayElements(env, inBuffer, NULL);
+    jbyte* out_mp3_buffer = (*env)->GetByteArrayElements(env, outBuffer, NULL);
+
+    int len = lame_encode_buffer_interleaved(ctx->gfp, (short int *) pcm_buffer, 
+            inputSize / (ctx->channels * ctx->bytes_per_sample) , out_mp3_buffer, out_mp3_len);
+
+    (*env)->ReleaseByteArrayElements(env, inBuffer, pcm_buffer, 0);
+    (*env)->ReleaseByteArrayElements(env, outBuffer, out_mp3_buffer, 0);
+
+    return len;
 }
 
 /*
