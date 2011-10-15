@@ -2,3 +2,4 @@ gen
 bin
 *.class
 *.so
+obj
